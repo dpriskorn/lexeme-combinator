@@ -99,12 +99,12 @@ class LexemeMissingCombines(BaseModel):
         for lexeme in self.possible_first_partwords:
             lemma = self.__get_cleaned_localized_lemma__(lexeme=lexeme)
             if self.localized_lemma.startswith(lemma):
-                console.print(f"Longest combine lemma candidate found is: {lemma}")
+                logger.info(f"Longest combine lemma candidate found is: {lemma}")
                 self.__check_if_two_combine_candidates_cover_the_whole_lemma__(
                     first_part=lexeme
                 )
             else:
-                console.print(
+                logger.info(
                     f"combine lemma candidate {lemma} is not "
                     f"found at start of {self.localized_lemma}"
                 )
