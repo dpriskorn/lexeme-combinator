@@ -1,6 +1,6 @@
 # Lexeme combinator
 Simple terminal UI tool to combine lexemes easily on Wikidata
-![image](https://user-images.githubusercontent.com/68460690/219970872-0be486db-dbcb-4377-8835-994421c2b543.png)
+![image](https://user-images.githubusercontent.com/68460690/219973773-f2ebb22f-7765-4690-bf8f-075fe5a15df7.png)
 
 # Installation
 * First download PyCharm or similar IDE.
