@@ -66,7 +66,7 @@ class LexemeMissingCombines(BaseModel):
           optional {{ ?l wdt:P5911 ?inflection }}
           optional {{ ?l wdt:P5923 ?creates }}
           service wikibase:label {{ bd:serviceParam wikibase:language "sv" }}
-        }} group by ?l ?lem ?lemma ?lexcatLabel ?genderLabel ?inflectionLabel ?createsLabel
+        }} group by ?l ?lem ?lexcatLabel ?genderLabel ?inflectionLabel ?createsLabel
         order by desc(strlen(?lem)) strstarts(?lem, "-") strends(?lem, "-") ?lem 
         limit 10
         """
@@ -75,6 +75,7 @@ class LexemeMissingCombines(BaseModel):
             # console.print(self.first_part_sparql_results)
             self.__parse_first_part_sparql_result_into_lexemes__()
         if self.possible_first_partwords:
+            # todo maybe we should just detect and warn the user about homonymous parts?
             self.__iterate_first_part_lexemes__()
         else:
             console.print("No possible lemmas to combine found")
@@ -133,8 +134,11 @@ class LexemeMissingCombines(BaseModel):
                     combination = Combination(
                         lang=self.lang, parts=[first_part, lexeme]
                     )
-                    self.__ask_user_to_validate_combination__(combination=combination)
+                    if not self.combine_two_validation_approved:
+                        logger.debug("No match already approved")
+                        self.__ask_user_to_validate_combination__(combination=combination)
                     if self.combine_two_validation_approved:
+                        logger.debug("match was approved")
                         self.__upload_combination__(combination=combination)
 
     def __get_cleaned_localized_lemma__(self, lexeme: LexemeEntity) -> str:
