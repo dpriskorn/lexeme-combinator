@@ -52,9 +52,7 @@ class Combinator(BaseModel):
         }}
         offset {random_offset}
         limit 10"""
-        self.sparql_result = execute_sparql_query(
-            query_no_combines_no_derives_from
-        )
+        self.sparql_result = execute_sparql_query(query_no_combines_no_derives_from)
 
     def __parse_sparql_result_into_lexemes__(self):
         if not self.sparql_result:

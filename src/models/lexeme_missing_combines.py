@@ -132,11 +132,13 @@ class LexemeMissingCombines(BaseModel):
                     #     f"{start_lemma} + {possible_end_lemma} match the whole string!"
                     # )
                     combination = Combination(
-                        lang=self.lang, parts=[first_part, lexeme]
+                        lexeme=self, lang=self.lang, parts=[first_part, lexeme]
                     )
                     if not self.combine_two_validation_approved:
                         logger.debug("No match already approved")
-                        self.__ask_user_to_validate_combination__(combination=combination)
+                        self.__ask_user_to_validate_combination__(
+                            combination=combination
+                        )
                     if self.combine_two_validation_approved:
                         logger.debug("match was approved")
                         self.__upload_combination__(combination=combination)
@@ -147,7 +149,7 @@ class LexemeMissingCombines(BaseModel):
 
     def __ask_user_to_validate_combination__(self, combination: Combination):
         logger.debug("__ask_user_to_validate_combination__: running")
-        console.print(str(combination))
+        console.print(combination.table)
         question = f"Do you want to upload this combination to Wikidata?(Y/n)"
         answer = console.input(question)
         if answer == "" or answer.lower() == "y":

@@ -1,6 +1,7 @@
-from typing import List
+from typing import List, Any
 
 from pydantic import BaseModel
+from rich.table import Table
 from wikibaseintegrator.datatypes import Lexeme, String
 from wikibaseintegrator.entities import LexemeEntity, ItemEntity
 from wikibaseintegrator.models import Senses, Sense
@@ -10,7 +11,8 @@ from src.models.exceptions import MissingInformationError
 
 
 class Combination(BaseModel):
-    parts: List[LexemeEntity] = []
+    lexeme: Any  # circular type LexemeMissingCombines
+    parts: List[LexemeEntity]
     lang: str
 
     class Config:
@@ -33,6 +35,36 @@ class Combination(BaseModel):
                 )
             )
         return claims
+
+    @property
+    def table(self) -> Table:
+        if self.number_of_parts == 2:
+            table = Table(title=self.lexeme.localized_lemma)
+            table.add_column("First", style="cyan", justify="right")
+            table.add_column("Second", style="magenta")
+            table.add_row(
+                self.localized_lemma(lexeme=self.parts[0]),
+                self.localized_lemma(lexeme=self.parts[1]),
+            )
+            table.add_row(
+                self.localized_lexical_category(lexeme=self.parts[0]),
+                self.localized_lexical_category(lexeme=self.parts[1]),
+            )
+            table.add_row(
+                self.localized_glosses_from_all_senses(lexeme=self.parts[0]),
+                self.localized_glosses_from_all_senses(lexeme=self.parts[1]),
+            )
+            return table
+        else:
+            raise NotImplementedError()
+
+    @property
+    def localized_lexical_categories(self) -> (str, str):
+        return ()
+
+    @property
+    def localized_lemmas(self) -> (str, str):
+        return ()
 
     def localized_lemma(self, lexeme: LexemeEntity) -> str:
         return str(lexeme.lemmas.get(language=self.lang))
@@ -60,19 +92,9 @@ class Combination(BaseModel):
             .labels.get(language=self.lang)
         )
 
-    def __str__(self):
-        lemmas = []
-        lexical_categories = []
-        glosses = []
-        for part in self.parts:
-            lemmas.append(self.localized_lemma(lexeme=part))
-            lexical_categories.append(self.localized_lexical_category(lexeme=part))
-            glosses.append(self.localized_glosses_from_all_senses(lexeme=part))
-        return (
-            f"{' + '.join(lemmas)}\n"
-            f"{' + '.join(lexical_categories)}\n"
-            f"{' + '.join(glosses)}"
-        )
+    @property
+    def number_of_parts(self) -> int:
+        return len(self.parts)
 
     def lexeme_uri(self, lexeme) -> str:
         return f"{config.wikibase_lexeme_base_uri}{lexeme.id}"
