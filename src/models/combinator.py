@@ -1,12 +1,17 @@
+import logging
 from typing import List, Dict, Any
 
 from pydantic import BaseModel
 from wikibaseintegrator import WikibaseIntegrator
 from wikibaseintegrator.wbi_helpers import execute_sparql_query
+from wikibaseintegrator.wbi_login import Login
 
+import config
 from src.console import console
 from src.models.lexeme_missing_combines import LexemeMissingCombines
 from src.exceptions import MissingInformationError
+
+logger = logging.getLogger(__name__)
 
 
 class Combinator(BaseModel):
@@ -32,17 +37,26 @@ class Combinator(BaseModel):
         arbitrary_types_allowed = True
         extra = "forbid"
 
-    def fetch_lexemes_without_combines(self):
+    def start(self):
+        """Helper method"""
+        logger.debug("start: running")
+        self.__fetch_lexemes_without_combines__()
+        self.__parse_sparql_result_into_lexemes__()
+        self.__iterate_lexemes__()
+
+    def __fetch_lexemes_without_combines__(self):
         if not self.lang:
             raise MissingInformationError()
         self.sparql_result = execute_sparql_query(
             self.query_no_combines_no_derives_from
         )
 
-    def parse_sparql_result_into_lexemes(self):
+    def __parse_sparql_result_into_lexemes__(self):
         if not self.sparql_result:
             raise MissingInformationError()
-        wbi = WikibaseIntegrator()
+        wbi = WikibaseIntegrator(
+            login=Login(user=config.user_name, password=config.bot_password)
+        )
         for result in self.sparql_result["results"]["bindings"]:
             console.print(result)
             lexeme = wbi.lexeme.get(
@@ -51,10 +65,10 @@ class Combinator(BaseModel):
                 )
             )
             lexeme_missing_combines = LexemeMissingCombines(
-                lexeme=lexeme, lang=self.lang
+                lexeme=lexeme, lang=self.lang, wbi=wbi
             )
             self.lexemes_without_combines.append(lexeme_missing_combines)
 
-    def iterate_lexemes(self):
+    def __iterate_lexemes__(self):
         for lexeme in self.lexemes_without_combines:
             lexeme.find_first_partword()

@@ -6,6 +6,7 @@ from wikibaseintegrator import WikibaseIntegrator
 from wikibaseintegrator.entities import LexemeEntity, ItemEntity
 from wikibaseintegrator.wbi_helpers import execute_sparql_query
 
+import config
 from src.console import console
 from src.exceptions import MissingInformationError
 from src.models.combination import Combination
@@ -18,8 +19,9 @@ class LexemeMissingCombines(BaseModel):
     lang: str
     possible_first_partwords: List[LexemeEntity] = []
     possible_finished_combinations: List[Combination] = []
-    first_part_sparql_results: Dict[str,Any] = {}
+    first_part_sparql_results: Dict[str, Any] = {}
     combine_two_validation_approved: bool = False
+    wbi: WikibaseIntegrator
 
     class Config:
         arbitrary_types_allowed = True
@@ -40,6 +42,12 @@ class LexemeMissingCombines(BaseModel):
             .get(entity_id=self.lexeme.lexical_category)
             .labels.get(language=self.lang)
         )
+
+    @property
+    def lexeme_uri(self):
+        if not self.lexeme:
+            raise MissingInformationError()
+        return f"https://www.wikidata.org/entity/{self.lexeme.id}"
 
     def find_first_partword(self):
         query_all_partwords = f"""
@@ -64,13 +72,13 @@ class LexemeMissingCombines(BaseModel):
         """
         self.first_part_sparql_results = execute_sparql_query(query_all_partwords)
         # console.print(self.first_part_sparql_results)
-        self.parse_first_part_sparql_result_into_lexemes()
+        self.__parse_first_part_sparql_result_into_lexemes__()
         if self.possible_first_partwords:
-            self.iterate_first_part_lexemes()
+            self.__iterate_first_part_lexemes__()
         else:
             console.print("No possible lemmas to combine found")
 
-    def parse_first_part_sparql_result_into_lexemes(self):
+    def __parse_first_part_sparql_result_into_lexemes__(self):
         if not self.first_part_sparql_results:
             raise MissingInformationError()
         wbi = WikibaseIntegrator()
@@ -83,13 +91,17 @@ class LexemeMissingCombines(BaseModel):
             )
             self.possible_first_partwords.append(lexeme)
 
-    def iterate_first_part_lexemes(self):
-        console.print(f"Found {len(self.possible_first_partwords)} possible parts of this lemma")
+    def __iterate_first_part_lexemes__(self):
+        console.print(
+            f"Found {len(self.possible_first_partwords)} possible parts of this lemma"
+        )
         for lexeme in self.possible_first_partwords:
-            lemma = self.get_cleaned_localized_lemma(lexeme=lexeme)
+            lemma = self.__get_cleaned_localized_lemma__(lexeme=lexeme)
             if self.localized_lemma.startswith(lemma):
                 console.print(f"Longest combine lemma candidate found is: {lemma}")
-                self.check_if_two_combine_candidates_cover_the_whole_lemma(first_part=lexeme)
+                self.__check_if_two_combine_candidates_cover_the_whole_lemma__(
+                    first_part=lexeme
+                )
                 exit()
             else:
                 console.print(
@@ -97,27 +109,36 @@ class LexemeMissingCombines(BaseModel):
                     f"found at start of {self.localized_lemma}"
                 )
 
-    def check_if_two_combine_candidates_cover_the_whole_lemma(self, first_part: LexemeEntity):
+    def __check_if_two_combine_candidates_cover_the_whole_lemma__(
+        self, first_part: LexemeEntity
+    ):
         logger.debug("check_if_two_combine_candidates_cover_the_whole_lemma: running")
         # we found the start lemma now check if any of the others complete the word
-        start_lemma = self.get_cleaned_localized_lemma(first_part)
+        start_lemma = self.__get_cleaned_localized_lemma__(first_part)
         for lexeme in self.possible_first_partwords:
             if lexeme.id != first_part.id:
-                possible_end_lemma = self.get_cleaned_localized_lemma(lexeme=lexeme)
-                logger.debug(f"checking if {start_lemma} + {possible_end_lemma} match the whole string")
+                possible_end_lemma = self.__get_cleaned_localized_lemma__(lexeme=lexeme)
+                logger.debug(
+                    f"checking if {start_lemma} + {possible_end_lemma} match the whole string"
+                )
                 if self.localized_lemma == start_lemma + possible_end_lemma:
-                    console.print(f"{start_lemma} + {possible_end_lemma} match the whole string!")
-                    self.ask_user_to_validate_combination(combination=Combination(lang=self.lang, parts=[first_part, lexeme]))
+                    console.print(
+                        f"{start_lemma} + {possible_end_lemma} match the whole string!"
+                    )
+                    combination = Combination(
+                        lang=self.lang, parts=[first_part, lexeme]
+                    )
+                    self.__ask_user_to_validate_combination__(combination=combination)
                     if self.combine_two_validation_approved:
-                        self.upload_combination()
+                        self.__upload_combination__(combination=combination)
                     exit()
 
-    def get_cleaned_localized_lemma(self, lexeme: LexemeEntity) -> str:
+    def __get_cleaned_localized_lemma__(self, lexeme: LexemeEntity) -> str:
         """We shave of the "-" here"""
         return str(lexeme.lemmas.get(language=self.lang))
 
-    def ask_user_to_validate_combination(self, combination: Combination):
-        logger.debug("ask_user_to_validate_combination: running")
+    def __ask_user_to_validate_combination__(self, combination: Combination):
+        logger.debug("__ask_user_to_validate_combination__: running")
         console.print(str(combination))
         question = f"Do you want to upload this combination to Wikidata?(Y/n)"
         answer = console.input(question)
@@ -127,6 +148,17 @@ class LexemeMissingCombines(BaseModel):
         else:
             self.combine_two_validation_approved = False
 
-    def upload_combination(self):
-        # TODO add code to upload
-        raise NotImplementedError()
+    def __upload_combination__(self, combination: Combination):
+        logger.debug("__upload_combination__: running")
+        if config.upload_to_wikidata:
+            self.lexeme.add_claims(claims=combination.claims)
+            summary = (
+                f"Added {{"
+                f"{{p|{config.combines_property}}}"
+                f"}} "
+                f"with [[Wikidata:Tools/lexeme-combinator]]"
+            )
+            result = self.lexeme.write(summary=summary)
+            if result:
+                logger.debug(result)
+                console.print(f"Succesfully uploaded combines to {self.lexeme.id}")
