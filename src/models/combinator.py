@@ -8,8 +8,8 @@ from wikibaseintegrator.wbi_login import Login
 
 import config
 from src.console import console
+from src.models.exceptions import MissingInformationError
 from src.models.lexeme_missing_combines import LexemeMissingCombines
-from src.exceptions import MissingInformationError
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class Combinator(BaseModel):
           minus {?lid wdt:P5238 [].} # combines
           minus {?lid wdt:P5191 [].} # derives from
     }
-    limit 1"""
+    limit 10"""
     sparql_result: Dict[str, Any] = {}
 
     class Config:
@@ -40,8 +40,9 @@ class Combinator(BaseModel):
     def start(self):
         """Helper method"""
         logger.debug("start: running")
-        self.__fetch_lexemes_without_combines__()
-        self.__parse_sparql_result_into_lexemes__()
+        with console.status("Fetching lexemes to work on"):
+            self.__fetch_lexemes_without_combines__()
+            self.__parse_sparql_result_into_lexemes__()
         self.__iterate_lexemes__()
 
     def __fetch_lexemes_without_combines__(self):
@@ -58,7 +59,7 @@ class Combinator(BaseModel):
             login=Login(user=config.user_name, password=config.bot_password)
         )
         for result in self.sparql_result["results"]["bindings"]:
-            console.print(result)
+            # console.print(result)
             lexeme = wbi.lexeme.get(
                 entity_id=result["lid"]["value"].replace(
                     "http://www.wikidata.org/entity/", ""
@@ -71,4 +72,5 @@ class Combinator(BaseModel):
 
     def __iterate_lexemes__(self):
         for lexeme in self.lexemes_without_combines:
+            console.print(f"Working on {lexeme.localized_lemma}")
             lexeme.find_first_partword()

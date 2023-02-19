@@ -8,8 +8,8 @@ from wikibaseintegrator.wbi_helpers import execute_sparql_query
 
 import config
 from src.console import console
-from src.exceptions import MissingInformationError
 from src.models.combination import Combination
+from src.models.exceptions import WbiWriteError, MissingInformationError
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +44,10 @@ class LexemeMissingCombines(BaseModel):
         )
 
     @property
-    def lexeme_uri(self):
+    def lexeme_uri(self) -> str:
         if not self.lexeme:
             raise MissingInformationError()
-        return f"https://www.wikidata.org/entity/{self.lexeme.id}"
+        return f"{config.wikibase_lexeme_base_uri}{self.lexeme.id}"
 
     def find_first_partword(self):
         query_all_partwords = f"""
@@ -70,9 +70,10 @@ class LexemeMissingCombines(BaseModel):
         order by desc(strlen(?lem)) strstarts(?lem, "-") strends(?lem, "-") ?lem 
         limit 10
         """
-        self.first_part_sparql_results = execute_sparql_query(query_all_partwords)
-        # console.print(self.first_part_sparql_results)
-        self.__parse_first_part_sparql_result_into_lexemes__()
+        with console.status("Fetching parts"):
+            self.first_part_sparql_results = execute_sparql_query(query_all_partwords)
+            # console.print(self.first_part_sparql_results)
+            self.__parse_first_part_sparql_result_into_lexemes__()
         if self.possible_first_partwords:
             self.__iterate_first_part_lexemes__()
         else:
@@ -83,7 +84,7 @@ class LexemeMissingCombines(BaseModel):
             raise MissingInformationError()
         wbi = WikibaseIntegrator()
         for result in self.first_part_sparql_results["results"]["bindings"]:
-            console.print(result)
+            # console.print(result)
             lexeme = wbi.lexeme.get(
                 entity_id=result["l"]["value"].replace(
                     "http://www.wikidata.org/entity/", ""
@@ -122,16 +123,15 @@ class LexemeMissingCombines(BaseModel):
                     f"checking if {start_lemma} + {possible_end_lemma} match the whole string"
                 )
                 if self.localized_lemma == start_lemma + possible_end_lemma:
-                    console.print(
-                        f"{start_lemma} + {possible_end_lemma} match the whole string!"
-                    )
+                    # logger.info(
+                    #     f"{start_lemma} + {possible_end_lemma} match the whole string!"
+                    # )
                     combination = Combination(
                         lang=self.lang, parts=[first_part, lexeme]
                     )
                     self.__ask_user_to_validate_combination__(combination=combination)
                     if self.combine_two_validation_approved:
                         self.__upload_combination__(combination=combination)
-                    exit()
 
     def __get_cleaned_localized_lemma__(self, lexeme: LexemeEntity) -> str:
         """We shave of the "-" here"""
@@ -153,12 +153,12 @@ class LexemeMissingCombines(BaseModel):
         if config.upload_to_wikidata:
             self.lexeme.add_claims(claims=combination.claims)
             summary = (
-                f"Added {{"
-                f"{{p|{config.combines_property}}}"
-                f"}} "
-                f"with [[Wikidata:Tools/lexeme-combinator]]"
+                f"Added comibnes with [[Wikidata:Tools/lexeme-combinator]]"
             )
             result = self.lexeme.write(summary=summary)
             if result:
                 logger.debug(result)
-                console.print(f"Succesfully uploaded combines to {self.lexeme.id}")
+                console.print(f"Succesfully uploaded combines to {self.lexeme_uri}")
+            else:
+                raise WbiWriteError(f"Got {result} from WBI")
+

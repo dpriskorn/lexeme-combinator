@@ -1,11 +1,11 @@
 from typing import List
 
 from pydantic import BaseModel
-from wikibaseintegrator.datatypes import Lexeme
+from wikibaseintegrator.datatypes import Lexeme, String
 from wikibaseintegrator.entities import LexemeEntity, ItemEntity
 
 import config
-from src.exceptions import MissingInformationError
+from src.models.exceptions import MissingInformationError
 
 
 class Combination(BaseModel):
@@ -19,8 +19,18 @@ class Combination(BaseModel):
     @property
     def claims(self):
         claims: List[Lexeme] = []
+        count = 0
         for part in self.parts:
-            claims.append(Lexeme(prop_nr=config.combines_property, value=part.id))
+            count += 1
+            claims.append(
+                Lexeme(
+                    prop_nr=config.combines_property,
+                    value=part.id,
+                    qualifiers=[
+                        String(prop_nr=config.series_ordinal_property, value=str(count))
+                    ],
+                )
+            )
         return claims
 
     def localized_lemma(self, lexeme: LexemeEntity) -> str:
