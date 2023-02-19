@@ -1,4 +1,5 @@
 import logging
+import random
 from typing import List, Dict, Any
 
 from pydantic import BaseModel
@@ -20,17 +21,6 @@ class Combinator(BaseModel):
     lang: str = ""
     # lexical_category: str = ""
     lexemes_without_combines: List[LexemeMissingCombines] = []
-    query_no_combines_no_derives_from = """
-        SELECT ?lid #?lemma 
-        WHERE {
-          ?lid dct:language wd:Q9027; # swedish
-             wikibase:lemma ?lemma.
-          # hardcode finding lexemes with long lemmas for now
-          filter(strlen(?lemma) >= 10) 
-          minus {?lid wdt:P5238 [].} # combines
-          minus {?lid wdt:P5191 [].} # derives from
-    }
-    limit 10"""
     sparql_result: Dict[str, Any] = {}
 
     class Config:
@@ -48,8 +38,22 @@ class Combinator(BaseModel):
     def __fetch_lexemes_without_combines__(self):
         if not self.lang:
             raise MissingInformationError()
+        random_offset = random.randint(0, 1000)
+        logger.info(f"Random offset: {random_offset}")
+        query_no_combines_no_derives_from = f"""
+            SELECT ?lid #?lemma 
+            WHERE {{
+              ?lid dct:language wd:Q9027; # swedish
+                 wikibase:lemma ?lemma.
+              # hardcode finding lexemes with long lemmas for now
+              filter(strlen(?lemma) >= 10) 
+              minus {{?lid wdt:P5238 [].}} # combines
+              minus {{?lid wdt:P5191 [].}} # derives from
+        }}
+        offset {random_offset}
+        limit 10"""
         self.sparql_result = execute_sparql_query(
-            self.query_no_combines_no_derives_from
+            query_no_combines_no_derives_from
         )
 
     def __parse_sparql_result_into_lexemes__(self):
