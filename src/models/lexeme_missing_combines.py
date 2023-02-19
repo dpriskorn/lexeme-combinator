@@ -103,7 +103,6 @@ class LexemeMissingCombines(BaseModel):
                 self.__check_if_two_combine_candidates_cover_the_whole_lemma__(
                     first_part=lexeme
                 )
-                exit()
             else:
                 console.print(
                     f"combine lemma candidate {lemma} is not "
@@ -122,7 +121,12 @@ class LexemeMissingCombines(BaseModel):
                 logger.debug(
                     f"checking if {start_lemma} + {possible_end_lemma} match the whole string"
                 )
-                if self.localized_lemma == start_lemma + possible_end_lemma:
+                # We lowercase the parts to support lemmas like:
+                # helsingforsare = Helsingfors + -are
+                if (
+                    self.localized_lemma
+                    == start_lemma.lower() + possible_end_lemma.lower()
+                ):
                     # logger.info(
                     #     f"{start_lemma} + {possible_end_lemma} match the whole string!"
                     # )
@@ -152,13 +156,10 @@ class LexemeMissingCombines(BaseModel):
         logger.debug("__upload_combination__: running")
         if config.upload_to_wikidata:
             self.lexeme.add_claims(claims=combination.claims)
-            summary = (
-                f"Added comibnes with [[Wikidata:Tools/lexeme-combinator]]"
-            )
+            summary = f"Added comibnes with [[Wikidata:Tools/lexeme-combinator]]"
             result = self.lexeme.write(summary=summary)
             if result:
                 logger.debug(result)
                 console.print(f"Succesfully uploaded combines to {self.lexeme_uri}")
             else:
                 raise WbiWriteError(f"Got {result} from WBI")
-
