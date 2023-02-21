@@ -53,7 +53,9 @@ class Combinator(BaseModel):
     def __fetch_lexemes_without_combines__(self):
         if not config.language_code:
             raise MissingInformationError()
-        random_offset = random.randint(0, self.total_number_of_lexemes - 10)
+        random_offset = random.randint(
+            0, self.total_number_of_lexemes - config.number_of_lexemes_to_fetch
+        )
         logger.info(f"Random offset: {random_offset}")
         query_no_combines_no_derives_from = f"""
             SELECT ?lid #?lemma 
@@ -66,7 +68,7 @@ class Combinator(BaseModel):
               minus {{?lid wdt:P5191 [].}} # derives from
         }}
         offset {random_offset}
-        limit 10"""
+        limit {config.number_of_lexemes_to_fetch}"""
         self.sparql_result = execute_sparql_query(query_no_combines_no_derives_from)
 
     def __parse_sparql_result_into_lexemes__(self):
@@ -82,27 +84,31 @@ class Combinator(BaseModel):
                     "http://www.wikidata.org/entity/", ""
                 )
             )
-            lexeme_missing_combines = LexemeMissingCombines(
-                lexeme=lexeme, wbi=wbi
-            )
+            lexeme_missing_combines = LexemeMissingCombines(lexeme=lexeme, wbi=wbi)
             self.lexemes_without_combines.append(lexeme_missing_combines)
 
     def __iterate_lexemes__(self):
         for lexeme in self.lexemes_without_combines:
             if not lexeme.localized_lemma:
-                raise MissingInformationError(f"Could not get localized lemma for lang "
-                                              f"'{config.language_code}' on "
-                                              f"lexeme {lexeme.lexeme_uri}")
+                raise MissingInformationError(
+                    f"Could not get localized lemma for lang "
+                    f"'{config.language_code}' on "
+                    f"lexeme {lexeme.lexeme_uri}"
+                )
             console.print(f"Working on {lexeme.localized_lemma}")
             lexeme.find_first_partword()
 
     def __fetch_total_number_of_lexemes_of_this_length_without_combines__(self):
         self.total_number_of_lexemes = 0
-        self.total_number_sparql_result = execute_sparql_query(self.query_total_number_of_lexemes)
+        self.total_number_sparql_result = execute_sparql_query(
+            self.query_total_number_of_lexemes
+        )
 
     def __get_total_number_from_sparql_result__(self):
         if not self.total_number_sparql_result:
             raise MissingInformationError()
         # console.print(self.total_number_sparql_result)
-        self.total_number_of_lexemes = int(self.total_number_sparql_result["results"]["bindings"][0]["count"]["value"])
+        self.total_number_of_lexemes = int(
+            self.total_number_sparql_result["results"]["bindings"][0]["count"]["value"]
+        )
         console.print(f"Found a total of {self.total_number_of_lexemes} lexemes")
