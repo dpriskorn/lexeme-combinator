@@ -57,14 +57,6 @@ class Combination(BaseModel):
         else:
             raise NotImplementedError()
 
-    @property
-    def localized_lexical_categories(self) -> (str, str):
-        return ()
-
-    @property
-    def localized_lemmas(self) -> (str, str):
-        return ()
-
     @staticmethod
     def localized_lemma(lexeme: LexemeEntity) -> str:
         return str(lexeme.lemmas.get(language=config.language_code))
