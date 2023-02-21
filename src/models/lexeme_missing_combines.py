@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 class LexemeMissingCombines(BaseModel):
     lexeme: LexemeEntity
-    lang: str
     possible_first_partwords: List[LexemeEntity] = []
     possible_finished_combinations: List[Combination] = []
     first_part_sparql_results: Dict[str, Any] = {}
@@ -29,18 +28,24 @@ class LexemeMissingCombines(BaseModel):
 
     @property
     def localized_lemma(self) -> str:
-        return str(self.lexeme.lemmas.get(language=self.lang))
+        if not config.language_code:
+            raise MissingInformationError()
+        language_value = self.lexeme.lemmas.get(language=config.language_code)
+        if language_value:
+            return str(language_value)
+        else:
+            return ""
 
     @property
     def localized_lexeme_category(self) -> str:
         if not self.lexeme:
             raise MissingInformationError()
-        if not self.lang:
+        if not config.language_code:
             raise MissingInformationError()
         return str(
             ItemEntity()
             .get(entity_id=self.lexeme.lexical_category)
-            .labels.get(language=self.lang)
+            .labels.get(language=config.language_code)
         )
 
     @property
@@ -54,7 +59,7 @@ class LexemeMissingCombines(BaseModel):
         select distinct ?l ?lem ?lexcatLabel ?genderLabel 
         ?inflectionLabel ?createsLabel {{
           values ?targetlemma {{ "{self.localized_lemma}" }}
-          ?l dct:language wd:Q9027;
+          ?l dct:language wd:{config.language_qid};
           wikibase:lemma ?lem.
           filter(contains(lcase(?targetlemma), replace(lcase(?lem), "(^-|-$)", ""))).
           # remove this lexeme from the results
@@ -132,7 +137,8 @@ class LexemeMissingCombines(BaseModel):
                     #     f"{start_lemma} + {possible_end_lemma} match the whole string!"
                     # )
                     combination = Combination(
-                        lexeme=self, lang=self.lang, parts=[first_part, lexeme]
+                        lexeme=self,
+                        parts=[first_part, lexeme],
                     )
                     if not self.combine_two_validation_approved:
                         logger.debug("No match already approved")
@@ -143,9 +149,10 @@ class LexemeMissingCombines(BaseModel):
                         logger.debug("match was approved")
                         self.__upload_combination__(combination=combination)
 
-    def __get_cleaned_localized_lemma__(self, lexeme: LexemeEntity) -> str:
+    @staticmethod
+    def __get_cleaned_localized_lemma__(lexeme: LexemeEntity) -> str:
         """We shave of the "-" here"""
-        return str(lexeme.lemmas.get(language=self.lang))
+        return str(lexeme.lemmas.get(language=config.language_code))
 
     def __ask_user_to_validate_combination__(self, combination: Combination):
         logger.debug("__ask_user_to_validate_combination__: running")
