@@ -8,6 +8,7 @@ user_agent = f"lexeme-combinator, see https://github.com/dpriskorn/lexeme-combin
 loglevel = logging.ERROR
 
 # Default values
+minimum_lemma_characters = 10
 # language_code = "sv"
 # language_qid = "Q9027"  # swedish
 language_code = "da"
