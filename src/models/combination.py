@@ -53,19 +53,36 @@ class Combination(BaseModel):
                 self.localized_glosses_from_all_senses(lexeme=self.parts[0]),
                 self.localized_glosses_from_all_senses(lexeme=self.parts[1]),
             )
+            table.add_row(
+                self.lexeme_uri(lexeme=self.parts[0]),
+                self.lexeme_uri(lexeme=self.parts[0]),
+            )
             return table
         else:
             raise NotImplementedError()
 
     @staticmethod
     def localized_lemma(lexeme: LexemeEntity) -> str:
-        return str(lexeme.lemmas.get(language=config.language_code))
+        if not config.language_code:
+            raise MissingInformationError()
+        language_value = lexeme.lemmas.get(language=config.language_code)
+        if language_value:
+            return str(language_value)
+        else:
+            raise MissingInformationError()
 
     @staticmethod
     def localized_gloss(sense: Sense) -> str:
         if not config.language_code:
             raise MissingInformationError()
-        return str(sense.glosses.get(language=config.language_code))
+        language_value = sense.glosses.get(language=config.language_code)
+        if language_value:
+            return str(language_value)
+        else:
+            return (
+                f"No gloss for '{config.language_code}' "
+                f"language for this sense, please add one"
+            )
 
     def localized_glosses_from_all_senses(self, lexeme: LexemeEntity) -> str:
         glosses = []
@@ -74,7 +91,7 @@ class Combination(BaseModel):
         if glosses:
             return ", ".join(glosses)
         else:
-            return f"No sense (please add it, see {self.lexeme_uri(lexeme=lexeme)})"
+            return f"No senses (please add)"
 
     @staticmethod
     def localized_lexical_category(lexeme: LexemeEntity) -> str:
