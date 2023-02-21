@@ -53,7 +53,7 @@ class Combinator(BaseModel):
     def __fetch_lexemes_without_combines__(self):
         if not config.language_code:
             raise MissingInformationError()
-        random_offset = random.randint(0, self.total_number_of_lexemes - 10)
+        random_offset = random.randint(0, self.total_number_of_lexemes - config.number_of_lexemes_to_fetch)
         logger.info(f"Random offset: {random_offset}")
         query_no_combines_no_derives_from = f"""
             SELECT ?lid #?lemma 
@@ -66,7 +66,7 @@ class Combinator(BaseModel):
               minus {{?lid wdt:P5191 [].}} # derives from
         }}
         offset {random_offset}
-        limit 10"""
+        limit {config.number_of_lexemes_to_fetch}"""
         self.sparql_result = execute_sparql_query(query_no_combines_no_derives_from)
 
     def __parse_sparql_result_into_lexemes__(self):
