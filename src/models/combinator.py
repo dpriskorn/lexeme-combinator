@@ -36,14 +36,14 @@ class Combinator(BaseModel):
         self.__iterate_lexemes__()
 
     def __fetch_lexemes_without_combines__(self):
-        if not self.lang:
+        if not config.language_code:
             raise MissingInformationError()
         random_offset = random.randint(0, 1000)
         logger.info(f"Random offset: {random_offset}")
         query_no_combines_no_derives_from = f"""
             SELECT ?lid #?lemma 
             WHERE {{
-              ?lid dct:language wd:Q9027; # swedish
+              ?lid dct:language wd:{config.language_qid};
                  wikibase:lemma ?lemma.
               # hardcode finding lexemes with long lemmas for now
               filter(strlen(?lemma) >= 10) 
@@ -68,11 +68,15 @@ class Combinator(BaseModel):
                 )
             )
             lexeme_missing_combines = LexemeMissingCombines(
-                lexeme=lexeme, lang=self.lang, wbi=wbi
+                lexeme=lexeme, wbi=wbi
             )
             self.lexemes_without_combines.append(lexeme_missing_combines)
 
     def __iterate_lexemes__(self):
         for lexeme in self.lexemes_without_combines:
+            if not lexeme.localized_lemma:
+                raise MissingInformationError(f"Could not get localized lemma for lang "
+                                              f"'{config.language_code}' on "
+                                              f"lexeme {lexeme.lexeme_uri}")
             console.print(f"Working on {lexeme.localized_lemma}")
             lexeme.find_first_partword()

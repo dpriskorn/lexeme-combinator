@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from rich.table import Table
 from wikibaseintegrator.datatypes import Lexeme, String
 from wikibaseintegrator.entities import LexemeEntity, ItemEntity
-from wikibaseintegrator.models import Senses, Sense
+from wikibaseintegrator.models import Sense
 
 import config
 from src.models.exceptions import MissingInformationError
@@ -13,7 +13,6 @@ from src.models.exceptions import MissingInformationError
 class Combination(BaseModel):
     lexeme: Any  # circular type LexemeMissingCombines
     parts: List[LexemeEntity]
-    lang: str
 
     class Config:
         arbitrary_types_allowed = True
@@ -66,13 +65,15 @@ class Combination(BaseModel):
     def localized_lemmas(self) -> (str, str):
         return ()
 
-    def localized_lemma(self, lexeme: LexemeEntity) -> str:
-        return str(lexeme.lemmas.get(language=self.lang))
+    @staticmethod
+    def localized_lemma(lexeme: LexemeEntity) -> str:
+        return str(lexeme.lemmas.get(language=config.language_code))
 
-    def localized_gloss(self, sense: Sense) -> str:
-        if not self.lang:
+    @staticmethod
+    def localized_gloss(sense: Sense) -> str:
+        if not config.language_code:
             raise MissingInformationError()
-        return str(sense.glosses.get(language=self.lang))
+        return str(sense.glosses.get(language=config.language_code))
 
     def localized_glosses_from_all_senses(self, lexeme: LexemeEntity) -> str:
         glosses = []
@@ -83,18 +84,20 @@ class Combination(BaseModel):
         else:
             return f"No sense (please add it, see {self.lexeme_uri(lexeme=lexeme)})"
 
-    def localized_lexical_category(self, lexeme: LexemeEntity) -> str:
-        if not self.lang:
+    @staticmethod
+    def localized_lexical_category(lexeme: LexemeEntity) -> str:
+        if not config.language_code:
             raise MissingInformationError()
         return str(
             ItemEntity()
             .get(entity_id=lexeme.lexical_category)
-            .labels.get(language=self.lang)
+            .labels.get(language=config.language_code)
         )
 
     @property
     def number_of_parts(self) -> int:
         return len(self.parts)
 
-    def lexeme_uri(self, lexeme) -> str:
+    @staticmethod
+    def lexeme_uri(lexeme) -> str:
         return f"{config.wikibase_lexeme_base_uri}{lexeme.id}"

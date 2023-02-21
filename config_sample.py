@@ -8,7 +8,12 @@ user_agent = f"lexeme-combinator, see https://github.com/dpriskorn/lexeme-combin
 loglevel = logging.ERROR
 
 # Default values
-language_code = "sv"
+# language_code = "sv"
+# language_qid = "Q9027"  # swedish
+language_code = "da"
+language_qid = "Q9035"  # danish
+# language_code = "nb"
+# language_qid = "Q25167"  # bokmål
 
 # we default to wikidata property values
 combines_property = "P5238"
