@@ -13,17 +13,13 @@ class TestLexemeMissingCombines:
     def test_localized_lemma_da(self):
         config.language_code = "da"
         config.language_qid = "Q9035"  # danish
-        lmc = LexemeMissingCombines(
-            lexeme=self.test_danish_lexeme, wbi=self.wbi
-        )
+        lmc = LexemeMissingCombines(lexeme=self.test_danish_lexeme, wbi=self.wbi)
         assert lmc.localized_lemma == "ødipuskompleks"
 
     def test_localized_lemma_sv(self):
         config.language_code = "sv"
         config.language_qid = "Q9027"  # danish
-        lmc = LexemeMissingCombines(
-            lexeme=self.test_swedish_lexeme, wbi=self.wbi
-        )
+        lmc = LexemeMissingCombines(lexeme=self.test_swedish_lexeme, wbi=self.wbi)
         assert lmc.localized_lemma == "konstutbildning"
 
     # def test_localized_lexeme_category(self):
