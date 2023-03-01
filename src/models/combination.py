@@ -55,7 +55,7 @@ class Combination(BaseModel):
             )
             table.add_row(
                 self.lexeme_uri(lexeme=self.parts[0]),
-                self.lexeme_uri(lexeme=self.parts[0]),
+                self.lexeme_uri(lexeme=self.parts[1]),
             )
             return table
         else:
