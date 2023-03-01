@@ -28,6 +28,8 @@ Run:
 
 This will promp you for each lexeme where 2 parts was successfully found.
 
+It defaults to fetching 10 lexemes with a minimum length from the working language specified in the config.py. It has been tested with Danish and Swedish
+
 # Thanks
 Big thanks to Nikki and Mahir for helping 
 with the SPARQL query that makes this possible.
