@@ -2,6 +2,11 @@
 Simple CLI-tool to combine lexemes easily on Wikidata
 ![image](https://user-images.githubusercontent.com/68460690/220359748-8a8bbf67-6516-4adc-9414-7957e05b7ac7.png)
 
+# Requirements
+python = ">=3.10,<3.13"
+
+On systems with a lower python version than 3.10, try updating your python installation first.
+
 # Installation
 Clone the git repo:
 
@@ -32,7 +37,7 @@ It defaults to fetching 10 lexemes with a minimum length from the working langua
 
 # Thanks
 Big thanks to Nikki and Mahir for helping 
-with the SPARQL query that makes this possible.
+with the SPARQL query that makes this possible and Finn Nielsen and Jan Ainali for feedback on the program and documentation.
 
 # License
 GPLv3+
