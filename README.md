@@ -1,4 +1,7 @@
 # Lexeme combinator
+**Note: There is an ongoing discussion about whether adding sense, form and syntactic dependency 
+is also needed for a tool like this** 
+
 Simple CLI-tool to combine lexemes easily on Wikidata
 ![image](https://user-images.githubusercontent.com/68460690/220359748-8a8bbf67-6516-4adc-9414-7957e05b7ac7.png)
 
