@@ -1,7 +1,9 @@
 from wikibaseintegrator import WikibaseIntegrator
 from wikibaseintegrator.entities import LexemeEntity
 
+import config
 from src.models.combination import Combination
+from src.models.lexeme_missing_combines import LexemeMissingCombines
 
 
 class TestCombination:
@@ -24,6 +26,7 @@ class TestCombination:
         pass
 
     def test_localized_glosses_from_all_senses_da(self):
+        config.language_code = "da"
         c = Combination(lexeme=self.test_danish_lexeme, parts=[self.test_danish_lexeme])
         assert (
             c.localized_glosses_from_all_senses(lexeme=self.test_danish_lexeme)
@@ -41,3 +44,21 @@ class TestCombination:
 
     def test_lexeme_uri(self):
         pass
+
+    def test_interfix_s_cover(self):
+        config.language_code = "sv"
+        swedish_interfix_s_lexeme = LexemeEntity().get(
+            entity_id="L60596"
+        )  # kärleksgåva
+        first_part = LexemeEntity().get(
+            entity_id="L33258"
+        )  # kärlek
+        last_part = LexemeEntity().get(
+            entity_id="L243182"
+        )  # gåva
+        lmc = LexemeMissingCombines(lexeme=swedish_interfix_s_lexeme, wbi=self.wbi)
+        c = Combination(
+            lexeme=swedish_interfix_s_lexeme,
+            parts=[first_part, lmc.__get_interfix_lexeme_if_possible__(), last_part]
+        )
+        assert c.the_parts_cover_the_whole_lemma is True

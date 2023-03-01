@@ -93,7 +93,7 @@ class Combinator(BaseModel):
                 raise MissingInformationError(
                     f"Could not get localized lemma for lang "
                     f"'{config.language_code}' on "
-                    f"lexeme {lexeme.lexeme_uri}"
+                    f"lexeme {lexeme.lexeme_uri(lexeme=lexeme.lexeme)}"
                 )
             console.print(f"Working on {lexeme.localized_lemma}")
             lexeme.find_first_partword()

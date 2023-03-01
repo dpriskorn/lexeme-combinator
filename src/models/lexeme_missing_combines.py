@@ -1,26 +1,26 @@
 import logging
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Optional
 
-from pydantic import BaseModel
 from wikibaseintegrator import WikibaseIntegrator
 from wikibaseintegrator.entities import LexemeEntity, ItemEntity
 from wikibaseintegrator.wbi_helpers import execute_sparql_query
 
 import config
 from src.console import console
+from src.enums import InterfixS
 from src.models.combination import Combination
-from src.models.exceptions import WbiWriteError, MissingInformationError
+from src.models.combinator_base_model import CombinatorBaseModel
+from src.models.exceptions import MissingInformationError
 
 logger = logging.getLogger(__name__)
 
 
-class LexemeMissingCombines(BaseModel):
+class LexemeMissingCombines(CombinatorBaseModel):
     lexeme: LexemeEntity
     possible_first_partwords: List[LexemeEntity] = []
-    possible_finished_combinations: List[Combination] = []
     first_part_sparql_results: Dict[str, Any] = {}
-    combine_two_validation_approved: bool = False
     wbi: WikibaseIntegrator
+    done: bool = False
 
     class Config:
         arbitrary_types_allowed = True
@@ -47,12 +47,6 @@ class LexemeMissingCombines(BaseModel):
             .get(entity_id=self.lexeme.lexical_category)
             .labels.get(language=config.language_code)
         )
-
-    @property
-    def lexeme_uri(self) -> str:
-        if not self.lexeme:
-            raise MissingInformationError()
-        return f"{config.wikibase_lexeme_base_uri}{self.lexeme.id}"
 
     def find_first_partword(self):
         query_all_partwords = f"""
@@ -109,6 +103,10 @@ class LexemeMissingCombines(BaseModel):
                 self.__check_if_two_combine_candidates_cover_the_whole_lemma__(
                     first_part=lexeme
                 )
+                if not self.done:
+                    self.__check_if_two_combine_candidates_with_s_in_between_cover_the_whole_lemma__(
+                        first_part=lexeme
+                    )
             else:
                 logger.info(
                     f"combine lemma candidate {lemma} is not "
@@ -120,59 +118,53 @@ class LexemeMissingCombines(BaseModel):
     ):
         logger.debug("check_if_two_combine_candidates_cover_the_whole_lemma: running")
         # we found the start lemma now check if any of the others complete the word
-        start_lemma = self.__get_cleaned_localized_lemma__(first_part)
         for lexeme in self.possible_first_partwords:
             if lexeme.id != first_part.id:
-                possible_end_lemma = self.__get_cleaned_localized_lemma__(lexeme=lexeme)
-                logger.debug(
-                    f"checking if {start_lemma} + {possible_end_lemma} match the whole string"
+                combination = Combination(
+                    lexeme=self.lexeme,
+                    parts=[first_part, lexeme],
                 )
-                # We lowercase the parts to support lemmas like:
-                # helsingforsare = Helsingfors + -are
-                if (
-                    self.localized_lemma
-                    == start_lemma.lower() + possible_end_lemma.lower()
-                ):
-                    # logger.info(
-                    #     f"{start_lemma} + {possible_end_lemma} match the whole string!"
-                    # )
-                    combination = Combination(
-                        lexeme=self,
-                        parts=[first_part, lexeme],
-                    )
-                    if not self.combine_two_validation_approved:
+                if combination.the_parts_cover_the_whole_lemma:
+                    if not self.done:
                         logger.debug("No match already approved")
-                        self.__ask_user_to_validate_combination__(
-                            combination=combination
+                        if combination.ask_user_to_validate:
+                            logger.debug("match was approved")
+                            combination.upload()
+                            self.done = True
+
+    def __check_if_two_combine_candidates_with_s_in_between_cover_the_whole_lemma__(
+        self, first_part: LexemeEntity
+    ):
+        logger.debug(
+            "__check_if_two_combine_candidates_with_s_in_between_cover_the_whole_lemma__: running"
+        )
+        if not self.done:
+            interfix_lexeme = self.__get_interfix_lexeme_if_possible__()
+            if interfix_lexeme:
+                # we found the start lemma now check if any of the others complete the word
+                for current_part in self.possible_first_partwords:
+                    if current_part.id != first_part.id:
+                        combination = Combination(
+                            lexeme=self.lexeme,
+                            parts=[first_part, interfix_lexeme, current_part],
                         )
-                    if self.combine_two_validation_approved:
-                        logger.debug("match was approved")
-                        self.__upload_combination__(combination=combination)
+                        if combination.the_parts_cover_the_whole_lemma:
+                            if (
+                                combination.ask_user_to_validate
+                            ):
+                                logger.debug("match was approved")
+                                combination.upload()
+                                self.done = True
+                    break
 
     @staticmethod
-    def __get_cleaned_localized_lemma__(lexeme: LexemeEntity) -> str:
-        """We shave of the "-" here"""
-        return str(lexeme.lemmas.get(language=config.language_code))
+    def __get_interfix_lexeme_if_possible__() -> Optional[LexemeEntity]:
+        logger.debug("__get_interfix_lexeme_if_possible__: running")
+        for language_code in InterfixS:
+            logger.debug(f"Checking if {language_code.name} == {config.language_code}")
+            if language_code.name == config.language_code:
+                logger.info("Found supported interfix language code")
+                return LexemeEntity().get(
+                    entity_id=InterfixS[config.language_code].value
+                )
 
-    def __ask_user_to_validate_combination__(self, combination: Combination):
-        logger.debug("__ask_user_to_validate_combination__: running")
-        console.print(combination.table)
-        question = f"Do you want to upload this combination to Wikidata?(Y/n)"
-        answer = console.input(question)
-        if answer == "" or answer.lower() == "y":
-            # we got enter/yes
-            self.combine_two_validation_approved = True
-        else:
-            self.combine_two_validation_approved = False
-
-    def __upload_combination__(self, combination: Combination):
-        logger.debug("__upload_combination__: running")
-        if config.upload_to_wikidata:
-            self.lexeme.add_claims(claims=combination.claims)
-            summary = f"Added comibnes with [[Wikidata:Tools/lexeme-combinator]]"
-            result = self.lexeme.write(summary=summary)
-            if result:
-                logger.debug(result)
-                console.print(f"Succesfully uploaded combines to {self.lexeme_uri}")
-            else:
-                raise WbiWriteError(f"Got {result} from WBI")
