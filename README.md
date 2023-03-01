@@ -12,14 +12,14 @@ We use pip and poetry to set everything up.
 
 `$ pip install poetry && poetry install`
 
-[Generate a botpassword](https://wikicitations.wiki.opencura.com/w/index.php?title=Special:UserLogin&returnto=Special%3ABotPasswords&returntoquery=&force=BotPasswords)
-
 ## Configuration
 Copy config.py.sample -> config.py 
+
 `$ cp config.py.sample config.py`
-and 
-enter your botpassword credentials. E.g. user: "test" and password: "q62noap7251t8o3nwgqov0c0h8gvqt20"
-`$ nano config.py`
+
+[Generate a botpassword](https://wikicitations.wiki.opencura.com/w/index.php?title=Special:UserLogin&returnto=Special%3ABotPasswords&returntoquery=&force=BotPasswords)
+
+Then enter your botpassword credentials in config.py using any text editor. E.g. user_name: "test" and bot_password: "q62noap7251t8o3nwgqov0c0h8gvqt20"
 
 # Use
 Run:
