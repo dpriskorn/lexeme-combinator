@@ -5,8 +5,7 @@ Simple CLI-tool to combine lexemes easily on Wikidata
 # Installation
 Clone the git repo:
 
-`$ git clone https://github.com/dpriskorn/lexeme-combinator.git`
-`$ cd lexeme-combinator`
+`$ git clone https://github.com/dpriskorn/lexeme-combinator.git && cd lexeme-combinator`
 
 ## Setup
 We use pip and poetry to set everything up.
